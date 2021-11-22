@@ -6,12 +6,18 @@
 // remove this one later i guess?
 #define PIXELS 1
 
-#define SPEED 50
-#define HOVER_POS_MIN 0
-#define HOVER_POS_MAX 180
-#define HOVER_STR_MAX 4
+#define SPEED 50 // how many ms to sleep between each color update
 
+#define HOVER_POS_MIN 2 // min input to color gradient function
+#define HOVER_POS_MAX 180 // max input to color gradient fnction
+#define HOVER_STR_MAX 4 // max amt to influence position in color gradient per update (any direction)
 uint8_t index = 130; // where in the gradient to start (should be inside HOVER_POS bounds)
+
+#define FLARE_STR_MAX 2 // max amt to influece flare meter (any direction)
+#define FLARE_THRESHOLD 30 // what value of flare meter that sets off a flare
+#define FLARE_RESET 5 // where to reset flare meter after a flare's been set off
+#define FLARE_EXTRA 25 // how much brighter is the flare
+uint8_t flare_ticker = 10;
 
 Adafruit_NeoPixel pixels(PIXELS, LED_PIN, NEO_RGB + NEO_KHZ800);
 
@@ -36,8 +42,8 @@ uint8_t greenData[] = {0, 0,
                      36, 4,
                      72, 0,
                      144, 0,
-                     180, 46,
-                     216, 145,
+                     180, 0, //180, 46,
+                     216, 46, //216, 145,
                      255, 145
                      };
 uint8_t blueData[] = {0, 0,
@@ -87,18 +93,30 @@ boolean index_in_hover_range() {
   return (index >= HOVER_POS_MIN) && (index <= HOVER_POS_MAX);
 }
 
+uint32_t getColor(uint8_t i) {
+  return pixels.Color(
+    gradient(i, redData), 
+    gradient(i, greenData), 
+    gradient(i, blueData)
+  );
+}
+
 void loop() {
   delay(SPEED);
-  pixels.setPixelColor(0, pixels.Color(
-    gradient(index, redData), 
-    gradient(index, greenData), 
-    gradient(index, blueData)
-  ));
-  pixels.show();
-
+  uint32_t color = getColor(index);
 
   if (index_in_hover_range()) {
     index += random(0-HOVER_STR_MAX, HOVER_STR_MAX+1);
     index = constrain(index, HOVER_POS_MIN, HOVER_POS_MAX);
   }
+
+  flare_ticker += random(0-FLARE_STR_MAX, FLARE_STR_MAX+1);
+  if (flare_ticker < 0) flare_ticker = 0;
+  if (flare_ticker > FLARE_THRESHOLD) {
+    flare_ticker = FLARE_RESET;
+    color = getColor(min(index + FLARE_EXTRA, 255));
+  }
+  
+  pixels.setPixelColor(0, color);
+  pixels.show();
 }
